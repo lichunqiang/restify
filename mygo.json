@@ -1,0 +1,13 @@
+{
+  "name": "Restify",
+  "identifier": "com.restify.Restify",
+  "version": "1.0.0",
+  "out": "build",
+  "macos": {
+    "minimumSystemVersion": "13.0",
+    "infoPlist": {
+      "LSUIElement": true,
+      "NSUserNotificationUsageDescription": "Restify 使用通知提醒您休息和喝水。"
+    }
+  }
+}

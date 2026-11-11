@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Go / mygo
+/build/
+/.mygo/
+mygo_windows_*.syso
+tools/node_modules/
+tools/bun.lock
+tools/package.json
+tools/bun.lockb
+
+# Local editor/agent state
+.claude/settings.local.json
+.zcode/
