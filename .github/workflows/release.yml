@@ -1,0 +1,60 @@
+name: Release
+
+# A tag push builds every platform, signs the updates and uploads them to
+# a draft release; when every platform is there, the release publishes and
+# installed apps update to it. The signing key comes from the
+# MYGO_UPDATER_PRIVATE_KEY secret (see README, 发布与更新).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  draft-release:
+    name: Draft release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --draft \
+            --verify-tag \
+            --title "Restify ${GITHUB_REF_NAME#v}" \
+            --generate-notes
+
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: macos-latest
+    needs: draft-release
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ["darwin/arm64", "darwin/amd64"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.27.3'
+
+      - name: Build and upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: go tool mygo build -platform "${{ matrix.platform }}" -upload
+
+  publish:
+    name: Publish release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false

@@ -65,6 +65,11 @@ type App struct {
 	deniedUntil time.Time // the popup's record was denied until this moment
 	snooze      *time.Timer
 
+	// The updater plugin's state, mirrored for the views (update.go).
+	updAuto      bool      // the background update checks are on
+	updLastCheck time.Time // the last successful update check
+	updAvailable string    // the newer version the updater found
+
 	// Sound state, guarded by soundMu: one event sound per kind, and the
 	// settings rows' one audition. The players themselves are
 	// goroutine-safe; the slots say which of them is current.
@@ -170,6 +175,9 @@ func (a *App) Start() {
 
 	// The hydration loop.
 	a.Hydration.Start(time.Now())
+
+	// The update checks, once the plugin's mirror is in place.
+	a.initUpdates()
 
 	// The tray, the shortcuts, the login item.
 	a.setupTray(s)

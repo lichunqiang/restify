@@ -578,6 +578,36 @@ func (s *SettingsWindow) aboutPage(c *ui.Context) {
 		KV(c, "版本", m.Version())
 		KV(c, "构建", "Go + mygo")
 	})
+	upd := m.UpdateInfo()
+	SettingsCard(c, "更新", func() {
+		switchRow(c, "自动检查更新", "每天在后台检查 GitHub 上的新版本", upd.AutoCheck, func(on bool) {
+			m.SetUpdateAutoCheck(on)
+		})
+		RowSeparator(c)
+		// The row's hint says where things stand; a click opens the
+		// update window, which explains itself whatever the answer was.
+		detail := "从 GitHub Release 下载并安装新版本"
+		switch {
+		case !upd.CanUpdate:
+			detail = "开发构建不支持自更新"
+		case upd.Available != "":
+			detail = "发现新版本 " + upd.Available
+		case !upd.LastCheck.IsZero():
+			detail = "上次检查 " + upd.LastCheck.Format("2006-01-02 15:04")
+		}
+		label := "立即检查"
+		if upd.Available != "" {
+			label = "查看更新"
+		}
+		SettingRow(c, "检查更新", detail, func() {
+			if action.Button(c, label, action.ButtonProps{Variant: action.Default, Size: theme.Small}).Clicked() {
+				m.CheckForUpdates()
+			}
+		})
+	})
+	if upd.Available != "" {
+		Notice(c, "发现新版本 "+upd.Available+"，点击“查看更新”即可安装。")
+	}
 	set := m.Settings()
 	Notice(c, "工作 "+core.FormatShort(set.WorkDuration)+" · 休息 "+core.FormatShort(set.GracePeriod)+" · 目标 "+fmt.Sprint(set.DailyGoal)+" 杯水。")
 }

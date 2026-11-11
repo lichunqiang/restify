@@ -313,7 +313,16 @@ func (p *Popover) footer(c *ui.Context, m PopoverModel, tk *theme.Tokens) ui.Ele
 				m.OpenStats()
 			}
 			ui.Box(c).Grow(1)
-			display.Text(c, "Restify "+m.Version(), display.TextProps{Type: display.TextSecondary, FontSize: 11}).SingleLine()
+			// A found version takes the version string's place, as a
+			// link that opens the update window.
+			if v := m.UpdateAvailable(); v != "" {
+				update := action.Button(c, "新版本 "+v, action.ButtonProps{Variant: action.Link, Size: theme.Small})
+				if update.Clicked() {
+					m.CheckForUpdates()
+				}
+			} else {
+				display.Text(c, "Restify "+m.Version(), display.TextProps{Type: display.TextSecondary, FontSize: 11}).SingleLine()
+			}
 		})
 	})
 }

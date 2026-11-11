@@ -28,6 +28,11 @@ type PopoverModel interface {
 	OpenSettings()
 	OpenStats()
 	Version() string
+	// UpdateAvailable is the newer version the updater found, empty when
+	// it found none (or the last one was skipped).
+	UpdateAvailable() string
+	// CheckForUpdates opens the update window now, as a user's click.
+	CheckForUpdates()
 }
 
 // SettingsModel edits the settings and reads what the pages show.
@@ -56,6 +61,22 @@ type SettingsModel interface {
 	ClearAllData() bool          // asks, clears on yes
 	ApplyLaunchAtLogin(bool)
 	Version() string
+	// UpdateInfo is the updater's state the About page shows.
+	UpdateInfo() UpdateInfo
+	// CheckForUpdates opens the update window now, as a user's click.
+	CheckForUpdates()
+	// SetUpdateAutoCheck turns the background checks on or off.
+	SetUpdateAutoCheck(bool)
+}
+
+// UpdateInfo is what the About page's update card shows.
+type UpdateInfo struct {
+	AutoCheck bool      // background checks are on
+	LastCheck time.Time // the last successful check, zero when never
+	Available string    // the newer version found, "" when none
+	// CanUpdate reports whether this build can update itself; a
+	// development build cannot, and says so.
+	CanUpdate bool
 }
 
 // StatsModel feeds the statistics window.

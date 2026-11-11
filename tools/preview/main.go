@@ -46,6 +46,8 @@ func (f *fakePopover) SkipBreak()                         {}
 func (f *fakePopover) OpenSettings()                      {}
 func (f *fakePopover) OpenStats()                         {}
 func (f *fakePopover) Version() string                    { return "1.0.0" }
+func (f *fakePopover) UpdateAvailable() string            { return "" }
+func (f *fakePopover) CheckForUpdates()                   {}
 
 type fakeSettings struct{ set store.Settings }
 
@@ -67,6 +69,9 @@ func (f *fakeSettings) ClearAllData() bool                      { return false }
 func (f *fakeSettings) ApplyLaunchAtLogin(bool)                 {}
 func (f *fakeSettings) Version() string                         { return "1.0.0" }
 func (f *fakeSettings) OpenStats()                              {}
+func (f *fakeSettings) UpdateInfo() gui.UpdateInfo              { return gui.UpdateInfo{AutoCheck: true} }
+func (f *fakeSettings) CheckForUpdates()                        {}
+func (f *fakeSettings) SetUpdateAutoCheck(bool)                 {}
 
 type fakeStats struct{}
 

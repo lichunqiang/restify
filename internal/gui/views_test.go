@@ -31,6 +31,8 @@ type fakePopoverModel struct {
 	settings int
 	stats    int
 	records  int
+	avail    string
+	checks   int
 }
 
 func (f *fakePopoverModel) Timer() core.Snapshot               { return f.snap }
@@ -45,6 +47,8 @@ func (f *fakePopoverModel) SkipBreak()                         { f.skips++ }
 func (f *fakePopoverModel) OpenSettings()                      { f.settings++ }
 func (f *fakePopoverModel) OpenStats()                         { f.stats++ }
 func (f *fakePopoverModel) Version() string                    { return "1.0.0" }
+func (f *fakePopoverModel) UpdateAvailable() string            { return f.avail }
+func (f *fakePopoverModel) CheckForUpdates()                   { f.checks++ }
 
 func TestPopoverView(t *testing.T) {
 	m := &fakePopoverModel{
@@ -163,6 +167,34 @@ func TestPopoverDeniedFeedback(t *testing.T) {
 	}
 }
 
+// A found version takes the version string's place in the footer, as a
+// link that opens the update window; with none, the version text stays.
+func TestPopoverUpdateAvailable(t *testing.T) {
+	m := &fakePopoverModel{snap: core.Snapshot{Phase: core.PhaseIdle}, avail: "1.1.0"}
+	tt := uiNewTester((&Popover{Model: m}).View, 340, 520)
+	if !tt.HasText("新版本 1.1.0") {
+		t.Errorf("update hint missing; texts %q", tt.Texts())
+	}
+	if tt.HasText("Restify 1.0.0") {
+		t.Errorf("version text shows over the update hint; texts %q", tt.Texts())
+	}
+	if err := tt.Click("新版本 1.1.0"); err != nil {
+		t.Fatal(err)
+	}
+	if m.checks != 1 {
+		t.Errorf("checks = %d after click", m.checks)
+	}
+
+	m.avail = ""
+	tt.Frame()
+	if !tt.HasText("Restify 1.0.0") {
+		t.Errorf("version text missing after the update went away; texts %q", tt.Texts())
+	}
+	if tt.HasText("新版本 1.1.0") {
+		t.Errorf("update hint stayed after the update went away; texts %q", tt.Texts())
+	}
+}
+
 // The panel draws with the Lobe tokens, so both appearances render and
 // they really differ: the same view in the dark appearance paints other
 // colors than in the light one.
@@ -237,6 +269,10 @@ type fakeSettingsModel struct {
 	stats        int
 	notice       string
 	noticeAt     time.Time
+	updInfo      UpdateInfo
+	checks       int
+	autoChecks   int
+	autoSet      bool
 }
 
 func (f *fakeSettingsModel) Settings() store.Settings { return f.set }
@@ -268,6 +304,9 @@ func (f *fakeSettingsModel) ExportData() (string, error) {
 	f.exports++
 	return "/tmp/export.json", f.exportErr
 }
+func (f *fakeSettingsModel) UpdateInfo() UpdateInfo     { return f.updInfo }
+func (f *fakeSettingsModel) CheckForUpdates()           { f.checks++ }
+func (f *fakeSettingsModel) SetUpdateAutoCheck(on bool) { f.autoChecks++; f.autoSet = on }
 
 func TestSettingsViewPages(t *testing.T) {
 	m := &fakeSettingsModel{set: store.DefaultSettings()}
@@ -425,6 +464,82 @@ func TestSettingsIntervalSelect(t *testing.T) {
 	}
 	if m.set.ReminderInterval != 30*time.Minute {
 		t.Errorf("reminder interval = %v after choosing 30 分钟", m.set.ReminderInterval)
+	}
+}
+
+// The About page's update card shows the checker's state, and a click on
+// 立即检查 opens the update window.
+func TestSettingsAboutUpdateCard(t *testing.T) {
+	m := &fakeSettingsModel{
+		set:     store.DefaultSettings(),
+		updInfo: UpdateInfo{AutoCheck: true, CanUpdate: true},
+	}
+	s := &SettingsWindow{Model: m}
+	tt := uiNewTester(s.View, 720, 720)
+	if err := tt.Click("关于"); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"更新", "自动检查更新", "检查更新", "从 GitHub Release 下载并安装新版本"} {
+		if !tt.HasText(want) {
+			t.Errorf("about page: %q missing; texts %q", want, tt.Texts())
+		}
+	}
+	if err := tt.Click("立即检查"); err != nil {
+		t.Fatal(err)
+	}
+	if m.checks != 1 {
+		t.Errorf("checks = %d after click", m.checks)
+	}
+}
+
+// A found version says itself in the row's hint and the notice, and the
+// row's button turns into 查看更新.
+func TestSettingsAboutUpdateAvailable(t *testing.T) {
+	m := &fakeSettingsModel{
+		set:     store.DefaultSettings(),
+		updInfo: UpdateInfo{AutoCheck: true, Available: "1.1.0", CanUpdate: true},
+	}
+	s := &SettingsWindow{Model: m}
+	tt := uiNewTester(s.View, 720, 720)
+	if err := tt.Click("关于"); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"发现新版本 1.1.0", "查看更新", "点击“查看更新”即可安装"} {
+		if !tt.HasText(want) {
+			t.Errorf("about page: %q missing; texts %q", want, tt.Texts())
+		}
+	}
+	if err := tt.Click("查看更新"); err != nil {
+		t.Fatal(err)
+	}
+	if m.checks != 1 {
+		t.Errorf("checks = %d after click", m.checks)
+	}
+}
+
+// switchRect is a named switch's bounds: the row's label text shares the
+// switch's name, so a click has to aim at the control itself.
+func switchRect(t *testing.T, tt *ui.Tester, label string) ui.Rect {
+	t.Helper()
+	info, ok := tt.AccessByRole(ui.RoleSwitch, label)
+	if !ok {
+		t.Fatalf("no switch named %s", label)
+	}
+	return info.Bounds
+}
+
+// The automatic-check switch writes through to the updater's preference.
+func TestSettingsAboutUpdateSwitch(t *testing.T) {
+	m := &fakeSettingsModel{set: store.DefaultSettings()}
+	s := &SettingsWindow{Model: m}
+	tt := uiNewTester(s.View, 720, 720)
+	if err := tt.Click("关于"); err != nil {
+		t.Fatal(err)
+	}
+	b := switchRect(t, tt, "自动检查更新")
+	tt.ClickAt(b.X+b.W/2, b.Y+b.H/2)
+	if m.autoChecks != 1 || !m.autoSet {
+		t.Errorf("auto check set %d times, on = %v", m.autoChecks, m.autoSet)
 	}
 }
 

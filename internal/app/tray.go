@@ -45,11 +45,18 @@ func (a *App) setupTray(s store.Settings) {
 	a.refreshTray()
 }
 
-// trayMenu builds the right-click menu.
+// trayMenu builds the right-click menu. The update item names a found
+// version when there is one: the menu rebuilds on every right-click, so
+// the label follows the mirror.
 func (a *App) trayMenu() *mygo.Menu {
+	update := "检查更新…"
+	if v := a.UpdateAvailable(); v != "" {
+		update = "发现新版本 " + v + "…"
+	}
 	return mygo.NewMenu([]*mygo.MenuItem{
 		{Label: "打开设置…", Accelerator: "CmdOrCtrl+,", Click: func(*mygo.MenuItem, *mygo.Window) { a.showSettings() }},
 		{Label: "饮水统计…", Click: func(*mygo.MenuItem, *mygo.Window) { a.showStats() }},
+		{Label: update, Click: func(*mygo.MenuItem, *mygo.Window) { a.CheckForUpdates() }},
 		mygo.Separator(),
 		{Label: "跳过休息", Click: func(*mygo.MenuItem, *mygo.Window) { a.SkipBreak() }},
 		mygo.Separator(),

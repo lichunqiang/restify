@@ -6,11 +6,17 @@ import (
 	"log"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater"
+	"github.com/egoist/mygo/plugins/updater/native"
 
 	"restify/internal/app"
 )
 
 func main() {
+	// Updates come from the signed GitHub releases; the window speaks
+	// the interface's language.
+	mygo.Use(native.New(updater.Options{Language: "zh-Hans"}))
+
 	// Dev runs are named after the binary; tie them to the app so the
 	// data directory and the single-instance lock are stable.
 	mygo.App.SetName("Restify")

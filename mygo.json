@@ -3,6 +3,11 @@
   "identifier": "com.restify.Restify",
   "version": "1.0.0",
   "out": "build",
+  "updates": {
+    "publicKey": "r40OsGZZBThSwZDwZlMPMRCdVqvSHL/AOv/o0Toi/9Y=",
+    "github": "lichunqiang/restify",
+    "privateKey": "~/Library/Application Support/mygo/update-keys/mygo-update.key"
+  },
   "macos": {
     "minimumSystemVersion": "13.0",
     "infoPlist": {

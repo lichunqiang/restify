@@ -11,6 +11,7 @@ macOS 菜单栏休息与喝水提醒应用：工作计时到期强制全屏休�
 - **全局快捷键**：⌘⇧T 开始/暂停计时，⌘⇧H 记录喝水，⌘, 打开设置
 - **智能工作提醒**：未计时时检测持续工作并提醒开启计时器
 - **界面**：全部视图由 Lobe MyGo 组件与 Lobe tokens 绘制，跟随浅色/深色/系统主题
+- **应用内更新**：从 GitHub Release 检查并安装签名更新（每日后台检查，可在设置中关闭，支持增量下载）
 - 通知、自定义提醒音（mp3/wav/ogg）、提醒文案库、登录自启、数据导出
 
 ## 运行与构建
@@ -29,6 +30,58 @@ go run ./tools/preview -out /tmp/preview   # 无头渲染全部视图为 PNG（-
 mygo v0.8.4-0.20261108082913-9233663736ca（Lobe MyGo 要求的版本）与
 lobe-mygo v0.0.0-20261109063003-6081a16a09f2，两者需同步升级。
 
+## 发布与更新
+
+应用通过 mygo 的签名更新机制从 GitHub Release 自更新：`mygo build` 用
+Ed25519 密钥对每个平台的归档签名并生成 manifest，应用内的更新器（Sparkle
+风格窗口，简体中文）每日后台检查最新 release，下载（优先增量 delta）、验签
+并在重启后替换应用。更新偏好存于 `~/Library/Application Support/Restify/updater.json`。
+
+### 一次性设置
+
+- 签名密钥由 `go tool mygo keygen` 生成于
+  `~/Library/Application Support/mygo/update-keys/`。`mygo-update.key`
+  私钥务必妥善保管、不要提交（公钥已写入 `mygo.json` 的
+  `updates.publicKey`）：丢失它，已安装的应用将永远收不到更新。
+- 把私钥设为 CI secret：
+
+  ```bash
+  gh secret set MYGO_UPDATER_PRIVATE_KEY \
+    < "$HOME/Library/Application Support/mygo/update-keys/mygo-update.key"
+  ```
+
+### 发布
+
+1. 同步改三处：`internal/app/app.go` 的 `Version` 常量、`mygo.json` 的
+   `version`，并在 `CHANGELOG.md` 新增 `## <版本> - <日期>` 节（它是更新
+   窗口里展示的 release notes；CHANGELOG 存在则必须有对应版本节）
+2. 提交后打 tag 并推送：
+
+   ```bash
+   git tag v1.1.0 && git push origin v1.1.0
+   ```
+
+3. CI（`.github/workflows/release.yml`）自动创建 draft release，构建并上传
+   darwin-arm64 与 darwin-amd64 的安装包、签名归档、增量与 manifest，两个
+   平台齐全后发布。已安装的应用每日检查 `releases/latest`，也可从托盘右键
+   菜单或“关于”页手动检查更新
+
+- 首个版本没有更早的发布可比对，不带增量更新，属正常；之后的构建会为
+  最近 3 个版本各生成一个 delta
+- 预发布版本请在 GitHub 上勾选 “Set as a pre-release”，或
+  `gh release edit <tag> --draft=false --prerelease`：已装应用会跳过它们，
+  只有 beta 版应用（`SetPrereleases`）会收到
+
+### 本地验证
+
+```bash
+go tool mygo build   # 私钥路径在 mygo.json 的 updates.privateKey，构建即签名
+```
+
+产出 `build/restify-<版本>-darwin-arm64.tar.gz` 与
+`update-darwin-arm64.json`；`-upload` 另需 `GH_TOKEN`。开发构建
+（`mygo dev`、`go run`）不能自更新，更新窗口会说明原因。
+
 ## 结构
 
 ```
@@ -46,21 +99,6 @@ tools/gen_icon           生成应用图标（resources/icon.png，SVG 无头渲
 ```
 
 数据存于 `~/Library/Application Support/Restify/`。
-
-## 与 Swift 版的差异
-
-本应用原为 SwiftUI 实现（macOS 13+），已完全重写为 Go，旧版代码可在 git
-历史中找到（`Restify/` 目录）。与旧版的行为差异：
-
-- 界面已重建为 Lobe MyGo（Lobe UI 设计语言）：颜色、字号、圆角与动效均取自
-  Lobe tokens，不再由本项目自定义设计系统
-- 通知无操作按钮（mygo 限制）：点击通知打开喝水弹窗代替
-- Dock 图标取消（`ActivationPolicyAccessory`，纯菜单栏应用）
-- LaunchAgent 常驻与 LSSharedFileList 登录项机制由
-  `mygo.App.SetOpenAtLogin` 取代
-- 菜单栏图标状态由 template 图形切换表达（不再是绿/橙着色）
-- 计时器暂停状态跨启动保留（旧版仅恢复"运行中"状态）
-- 旧版 UserDefaults 数据不迁移
 
 ## 验证
 
