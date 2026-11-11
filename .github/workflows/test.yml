@@ -45,4 +45,8 @@ jobs:
           go-version: '>=1.27.3'
 
       - name: Build
-        run: go tool mygo build
+        env:
+          # mygo.json has updates, so the build signs the update archives
+          # and needs the key; -skip-dmg leaves the disk image to Release.
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: go tool mygo build -skip-dmg
